@@ -9,23 +9,26 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
 import java.io.*;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.stream.Collectors;
+import java.util.*;
 
 public class FieldManagementApp extends Application {
     private final ObservableList<String> fieldListData = FXCollections.observableArrayList();
     private final HashMap<String, String> fieldDetailsMap = new HashMap<>();
+    private final HashMap<String, List<String>> fieldTasksMap = new HashMap<>();
+    private final HashMap<String, List<String>> fieldTasksOpenMap = new HashMap<>();
+    private final HashMap<String, List<String>> fieldTasksDoneMap = new HashMap<>();
     private final File saveFile = new File("fields_data.txt");
     private final TilePane tilePane = new TilePane(); // Kachelansicht für Felder
     private String selectedField = null; // Speichert das aktuell ausgewählte Feld
-    private VBox draggedBox = null; // Die aktuell gezogene Kachel
+
+    // Standard-Arbeitsschritte
+    private static final List<String> STANDARD_TASKS = Arrays.asList(
+            "Pflügen", "Gruppern" ,"Säen", "Düngen", "Spritzen"
+    );
 
     // Fruchttypen auf Deutsch
     private final String[] cropTypes = {
@@ -34,12 +37,37 @@ public class FieldManagementApp extends Application {
             "Erbse", "Spinat", "Zuckerrohr", "Traube", "Oliven", "Pappel"
     };
 
+    private static final Map<String, List<String>> FRUCHTFOLGEN = new HashMap<>();
+    static {
+        FRUCHTFOLGEN.put("Weizen", Arrays.asList("Gerste", "Raps", "Mais", "Sojabohne", "Zuckerrüben"));
+        FRUCHTFOLGEN.put("Gerste", Arrays.asList("Raps", "Weizen", "Mais", "Kartoffel", "Sonnenblume"));
+        FRUCHTFOLGEN.put("Hafer", Arrays.asList("Luzerne", "Mais", "Raps", "Weizen", "Sonnenblume"));
+        FRUCHTFOLGEN.put("Raps", Arrays.asList("Weizen", "Gerste", "Kartoffel", "Hafer", "Zuckerrüben"));
+        FRUCHTFOLGEN.put("Sorghumhirse", Arrays.asList("Sojabohne", "Mais", "Sonnenblume", "Weizen", "Pappel"));
+        FRUCHTFOLGEN.put("Sonnenblume", Arrays.asList("Weizen", "Hafer", "Sojabohne", "Mais", "Gerste"));
+        FRUCHTFOLGEN.put("Sojabohne", Arrays.asList("Weizen", "Gerste", "Mais", "Sonnenblume", "Raps"));
+        FRUCHTFOLGEN.put("Mais", Arrays.asList("Weizen", "Sojabohne", "Sonnenblume", "Raps", "Hafer"));
+        FRUCHTFOLGEN.put("Kartoffel", Arrays.asList("Weizen", "Gerste", "Mais", "Sonnenblume", "Raps"));
+        FRUCHTFOLGEN.put("Zuckerrüben", Arrays.asList("Weizen", "Hafer", "Mais", "Raps", "Sonnenblume"));
+        FRUCHTFOLGEN.put("Rote Beete", Arrays.asList("Weizen", "Hafer", "Mais", "Raps", "Sonnenblume"));
+        FRUCHTFOLGEN.put("Karotte", Arrays.asList("Weizen", "Mais", "Raps", "Hafer", "Sonnenblume"));
+        FRUCHTFOLGEN.put("Pastinake", Arrays.asList("Weizen", "Mais", "Gerste", "Raps", "Hafer"));
+        FRUCHTFOLGEN.put("Baumwolle", Arrays.asList("Mais", "Sojabohne", "Sonnenblume", "Weizen", "Gerste"));
+        FRUCHTFOLGEN.put("Reis", Arrays.asList("Sojabohne", "Mais", "Raps", "Sonnenblume", "Weizen"));
+        FRUCHTFOLGEN.put("Grüne Bohne", Arrays.asList("Weizen", "Hafer", "Mais", "Sonnenblume", "Raps"));
+        FRUCHTFOLGEN.put("Spinat", Arrays.asList("Weizen", "Gerste", "Mais", "Hafer", "Raps"));
+        FRUCHTFOLGEN.put("Zuckerrohr", Arrays.asList("Mais", "Sojabohne", "Weizen", "Raps", "Gerste"));
+        FRUCHTFOLGEN.put("Traube", Arrays.asList("Weizen", "Hafer", "Mais", "Sonnenblume", "Raps"));
+        FRUCHTFOLGEN.put("Oliven", Arrays.asList("Weizen", "Hafer", "Mais", "Raps", "Sonnenblume"));
+        FRUCHTFOLGEN.put("Pappel", Arrays.asList("Weizen", "Gerste", "Mais", "Sonnenblume", "Raps"));
+    }
+
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Feld Manager - Farming Simulator 22");
 
         // Überschrift erstellen
-        Label titleLabel = new Label("Felder Management by Agrar GBR A.N.D.P Software");
+        Label titleLabel = new Label("Felder Management by Kuhstall 2.0 Software");
         titleLabel.getStyleClass().add("title-label"); // CSS für die Überschrift
 
         // Logo hinzufügen
@@ -56,7 +84,7 @@ public class FieldManagementApp extends Application {
         // Erste Zeile der Überschrift
         Label titleLabelLine1 = new Label("Felder Management");
         // Zweite Zeile der Überschrift
-        Label titleLabelLine2 = new Label("by Agrar GBR A.N.D.P Software");
+        Label titleLabelLine2 = new Label("by Kuhstall 2.0 Software");
 
         // CSS-Styling hinzufügen
         titleLabelLine1.getStyleClass().add("title-label");
@@ -79,6 +107,11 @@ public class FieldManagementApp extends Application {
         tilePane.setPrefColumns(3); // Anzahl der Spalten in der Kachelansicht
         updateTilePane();
 
+        ScrollPane scrollPane = new ScrollPane(tilePane);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(true);
+        scrollPane.setPannable(true);
+
         Button createFieldButton = new Button("Feld erstellen");
         createFieldButton.setOnAction(e -> openCreateFieldWindow(primaryStage));
 
@@ -95,20 +128,13 @@ public class FieldManagementApp extends Application {
         buttonBox.setPadding(new Insets(10));
         buttonBox.getStyleClass().add("button-box");
 
-        // Kachelansicht aktualisieren
-        tilePane.setPadding(new Insets(10));
-        tilePane.setHgap(10);
-        tilePane.setVgap(10);
-        tilePane.setPrefColumns(3); // Anzahl der Spalten in der Kachelansicht
-        updateTilePane();
-
         // Hauptlayout erstellen
         BorderPane mainLayout = new BorderPane();
         mainLayout.setTop(headerBox); // Überschrift und Logo oben
-        mainLayout.setCenter(tilePane); // Kachelansicht in der Mitte
+        mainLayout.setCenter(scrollPane); // Kachelansicht mit Scrollen in der Mitte
         mainLayout.setBottom(buttonBox); // Buttons unten
 
-        Scene scene = new Scene(mainLayout, 600, 400);
+        Scene scene = new Scene(mainLayout, 750, 450);
         scene.getStylesheets().add("style.css"); // CSS-Datei laden
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -144,10 +170,57 @@ public class FieldManagementApp extends Application {
 
             fieldBox.getChildren().addAll(fieldNumberLabel, fieldSizeLabel, cropIcon, currentCropLabel);
 
-            // Add Drag-and-Drop functionality
+            // --- Arbeitsschritte-Checkboxen ---
+            BorderPane fieldPane = new BorderPane();
+            VBox infoBox = new VBox(5, fieldNumberLabel, fieldSizeLabel, cropIcon, currentCropLabel);
+            infoBox.setPadding(new Insets(0, 10, 0, 0)); // Rechts Platz lassen
+
+            VBox tasksVBox = new VBox(5);
+            tasksVBox.setPadding(new Insets(0, 0, 0, 10)); // Abstand zu den Infos
+            List<String> openTasks = fieldTasksOpenMap.getOrDefault(field, new ArrayList<>(STANDARD_TASKS));
+            List<String> doneTasks = fieldTasksDoneMap.getOrDefault(field, new ArrayList<>());
+            for (String task : STANDARD_TASKS) {
+                CheckBox cb = new CheckBox(task);
+                if (doneTasks.contains(task)) {
+                    cb.setSelected(true);
+                    cb.setDisable(true);
+                } else {
+                    cb.setSelected(false);
+                    cb.setDisable(false);
+                }
+                cb.setOnAction(e -> {
+                    if (cb.isSelected()) {
+                        openTasks.remove(task);
+                        doneTasks.add(task);
+                        fieldTasksOpenMap.put(field, new ArrayList<>(openTasks));
+                        fieldTasksDoneMap.put(field, new ArrayList<>(doneTasks));
+                        saveFieldsToFile();
+                        updateTilePane();
+                    }
+                });
+                tasksVBox.getChildren().add(cb);
+            }
+            if (doneTasks.size() == STANDARD_TASKS.size()) {
+                Label doneLabel = new Label("Alle Arbeitsschritte erledigt!");
+                doneLabel.setStyle("-fx-text-fill: green; -fx-font-size: 10;");
+                tasksVBox.getChildren().add(doneLabel);
+            }
+
+            fieldPane.setLeft(infoBox);
+            fieldPane.setRight(tasksVBox);
+            fieldTasksOpenMap.put(field, new ArrayList<>(openTasks));
+            fieldTasksDoneMap.put(field, new ArrayList<>(doneTasks));
+            fieldBox.getChildren().add(fieldPane);
+
+            // Drag-and-Drop
             enableDragAndDrop(fieldBox, field);
 
-            fieldBox.setOnMouseClicked(event -> handleFieldSelection(fieldBox, field));
+            fieldBox.setOnMouseClicked(event -> {
+                handleFieldSelection(fieldBox, field);
+                if (event.getClickCount() == 2) {
+                    showFieldDetails(field);
+                }
+            });
             tilePane.getChildren().add(fieldBox);
         }
     }
@@ -208,10 +281,6 @@ public class FieldManagementApp extends Application {
             String imagePath = basePath + cropName + ".png";
             File imageFile = new File(imagePath);
 
-            System.out.println("Überprüfe Datei: " + imagePath);
-            System.out.println("Existiert Datei? " + imageFile.exists());
-            System.out.println("Ist es eine Datei? " + imageFile.isFile());
-
             if (!imageFile.exists()) {
                 throw new FileNotFoundException("Bild nicht gefunden: " + imagePath);
             }
@@ -219,24 +288,16 @@ public class FieldManagementApp extends Application {
             Image image = new Image(new FileInputStream(imageFile));
             return new ImageView(image);
         } catch (FileNotFoundException e) {
-            System.err.println("Fehler beim Laden des Icons für " + cropName + ": " + e.getMessage());
             // Fallback auf Standard-Icon
             try {
                 String defaultImagePath = System.getProperty("user.dir") + "/images/default.png";
                 File defaultImageFile = new File(defaultImagePath);
-
-                System.out.println("Überprüfe Standard-Icon: " + defaultImagePath);
-                System.out.println("Existiert Standard-Icon? " + defaultImageFile.exists());
-                System.out.println("Ist es eine Datei? " + defaultImageFile.isFile());
-
                 if (!defaultImageFile.exists()) {
                     throw new FileNotFoundException("Standard-Icon nicht gefunden: " + defaultImagePath);
                 }
-
                 Image defaultImage = new Image(new FileInputStream(defaultImageFile));
                 return new ImageView(defaultImage);
             } catch (FileNotFoundException ex) {
-                System.err.println("Standard-Icon konnte nicht geladen werden: " + ex.getMessage());
                 // Gib ein leeres Platzhalter-Image zurück, falls kein Standard-Icon existiert
                 return new ImageView();
             }
@@ -284,6 +345,20 @@ public class FieldManagementApp extends Application {
             followCropBox.getChildren().add(followCropCombo);
         }
 
+        // Automatische Folgefrucht-Belegung basierend auf aktueller Frucht
+        currentCropCombo.setOnAction(e -> {
+            String selected = currentCropCombo.getValue();
+            List<String> folgen = FRUCHTFOLGEN.getOrDefault(selected, new ArrayList<>());
+            for (int i = 0; i < followCropCombos.size(); i++) {
+                if (i < folgen.size()) {
+                    followCropCombos.get(i).setValue(folgen.get(i));
+                } else {
+                    followCropCombos.get(i).setValue(null);
+                }
+            }
+        });
+
+
         Button saveButton = new Button("Speichern");
         saveButton.setOnAction(e -> {
             String fieldNumber = fieldNumberField.getText();
@@ -308,6 +383,9 @@ public class FieldManagementApp extends Application {
 
             fieldListData.add(listEntryText);
             fieldDetailsMap.put(listEntryText, fullDetails.toString());
+            fieldTasksMap.put(listEntryText, new ArrayList<>(STANDARD_TASKS)); // Aufgaben initialisieren
+            fieldTasksOpenMap.put(listEntryText, new ArrayList<>(STANDARD_TASKS));
+            fieldTasksDoneMap.put(listEntryText, new ArrayList<>());
 
             // Save the data to file
             saveFieldsToFile();
@@ -397,9 +475,11 @@ public class FieldManagementApp extends Application {
 
             fieldListData.remove(selectedField);
             fieldDetailsMap.remove(selectedField);
+            fieldTasksMap.remove(selectedField);
 
             fieldListData.add(newListEntryText);
             fieldDetailsMap.put(newListEntryText, newFullDetails.toString());
+            fieldTasksMap.put(newListEntryText, new ArrayList<>(STANDARD_TASKS)); // Aufgaben zurücksetzen
 
             // Save the data to file
             saveFieldsToFile();
@@ -431,6 +511,7 @@ public class FieldManagementApp extends Application {
 
         fieldListData.remove(selectedField);
         fieldDetailsMap.remove(selectedField);
+        fieldTasksMap.remove(selectedField);
 
         // Save to file
         saveFieldsToFile();
@@ -448,7 +529,6 @@ public class FieldManagementApp extends Application {
 
         String fieldNumber = details[0].split(": ")[1];
         String fieldSize = details[1].split(": ")[1];
-        String currentCrop = details[2].split(": ")[1];
         ArrayList<String> followCrops = new ArrayList<>();
         for (int i = 3; i < details.length; i++) {
             followCrops.add(details[i].split(": ")[1]);
@@ -469,9 +549,11 @@ public class FieldManagementApp extends Application {
 
         fieldListData.remove(selectedField);
         fieldDetailsMap.remove(selectedField);
+        fieldTasksMap.remove(selectedField);
 
         fieldListData.add(newListEntryText);
         fieldDetailsMap.put(newListEntryText, newFullDetails.toString());
+        fieldTasksMap.put(newListEntryText, new ArrayList<>(STANDARD_TASKS)); // Aufgaben auf Anfang setzen
 
         // Save to file
         saveFieldsToFile();
@@ -483,7 +565,13 @@ public class FieldManagementApp extends Application {
             for (String field : fieldListData) {
                 writer.write(fieldDetailsMap.get(field));
                 writer.newLine();
-                writer.newLine(); // Add a blank line between field entries
+                List<String> openTasks = fieldTasksOpenMap.getOrDefault(field, new ArrayList<>());
+                List<String> doneTasks = fieldTasksDoneMap.getOrDefault(field, new ArrayList<>());
+                writer.write("TasksOpen: " + String.join("|", openTasks));
+                writer.newLine();
+                writer.write("TasksDone: " + String.join("|", doneTasks));
+                writer.newLine();
+                writer.newLine(); // Leere Zeile zwischen Einträgen
             }
         } catch (IOException e) {
             showAlert("Fehler", "Fehler beim Speichern der Daten: " + e.getMessage());
@@ -496,20 +584,33 @@ public class FieldManagementApp extends Application {
         try (BufferedReader reader = new BufferedReader(new FileReader(saveFile))) {
             StringBuilder fieldDetails = new StringBuilder();
             String line;
+            List<String> openTasks = new ArrayList<>(STANDARD_TASKS);
+            List<String> doneTasks = new ArrayList<>();
+            String listEntryText = "";
             while ((line = reader.readLine()) != null) {
-                if (line.isEmpty()) { // Blank line indicates the end of a field's details
+                if (line.startsWith("TasksOpen: ")) {
+                    String openLine = line.substring(10).trim();
+                    openTasks = openLine.isEmpty() ? new ArrayList<>() : new ArrayList<>(Arrays.asList(openLine.split("\\|")));
+                } else if (line.startsWith("TasksDone: ")) {
+                    String doneLine = line.substring(11).trim();
+                    doneTasks = doneLine.isEmpty() ? new ArrayList<>() : new ArrayList<>(Arrays.asList(doneLine.split("\\|")));
+                } else if (line.isEmpty()) {
                     if (fieldDetails.length() > 0) {
                         String details = fieldDetails.toString();
                         String[] parts = details.split("\n");
                         if (parts.length >= 3) {
                             String fieldNumber = parts[0].split(": ")[1];
                             String currentCrop = parts[2].split(": ")[1];
-                            String listEntryText = "Feld " + fieldNumber + ": " + currentCrop;
+                            listEntryText = "Feld " + fieldNumber + ": " + currentCrop;
 
                             fieldListData.add(listEntryText);
-                            fieldDetailsMap.put(listEntryText, details);
+                            fieldDetailsMap.put(listEntryText, details.trim());
+                            fieldTasksOpenMap.put(listEntryText, new ArrayList<>(openTasks));
+                            fieldTasksDoneMap.put(listEntryText, new ArrayList<>(doneTasks));
                         }
-                        fieldDetails.setLength(0); // Clear the StringBuilder for the next field
+                        fieldDetails.setLength(0);
+                        openTasks = new ArrayList<>(STANDARD_TASKS);
+                        doneTasks = new ArrayList<>();
                     }
                 } else {
                     fieldDetails.append(line).append("\n");
