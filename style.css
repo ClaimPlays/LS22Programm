@@ -1,0 +1,144 @@
+/* Allgemeine Stile */
+.root {
+    -fx-font-family: "Arial", sans-serif;
+    -fx-background-color: linear-gradient(to bottom, #dff6dd, #b2d8b2); /* Heller Grünton */
+}
+
+/* Header-Stil (Überschrift und Logo) */
+.header-box {
+    -fx-spacing: 10px;
+    -fx-padding: 20px;
+}
+
+.title-label {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2e7d32; /* Dunkler Grünton */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 2, 0, 0, 1);
+}
+
+.subtitle-label {
+    -fx-font-size: 16px;
+    -fx-text-fill: #558b2f; /* Mittlerer Grünton */
+}
+
+/* Kachel-Stil */
+.field-box {
+    -fx-border-color: #a5d6a7; /* Hellgrün */
+    -fx-border-width: 2px;
+    -fx-background-color: #ffffff; /* Weiß */
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 5, 0, 0, 3);
+    -fx-padding: 10px;
+    -fx-alignment: center;
+    -fx-cursor: pointer;
+    -fx-transition: 0.3s;
+}
+
+.field-box:hover {
+    -fx-background-color: #e8f5e9; /* Sehr helles Grün */
+}
+
+.selected-field {
+    -fx-border-color: #ff7043; /* Orange für ausgewählte Felder */
+    -fx-border-width: 3px;
+}
+
+/* Labels in Kacheln */
+.field-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #333333;
+    -fx-wrap-text: true;
+    -fx-alignment: center;
+}
+
+/* Buttons */
+.button-box button {
+    -fx-background-color: #4caf50; /* Grün */
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5px;
+    -fx-padding: 10px 20px;
+    -fx-border-width: 0;
+    -fx-cursor: pointer;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 3, 0, 0, 2);
+}
+
+.button-box button:hover {
+    -fx-background-color: #388e3c; /* Dunkleres Grün beim Hover */
+}
+
+.button-box button:pressed {
+    -fx-background-color: #2e7d32; /* Noch dunkleres Grün */
+}
+
+/* Scrollbar-Stil */
+.scroll-bar {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+/* Stil für die Button-Leiste */
+.button-box {
+    -fx-alignment: center-right;
+    -fx-spacing: 10px;
+    -fx-padding: -80px 120px -20px 0px; /* oben rechts unten links */
+}
+
+/* Allgemeiner Button-Stil */
+.button {
+    -fx-background-color: linear-gradient(to bottom, #5cb85c, #4cae4c);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6px;
+    -fx-padding: 8px 18px;
+    -fx-border-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-border-color: #398439;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow( gaussian , rgba(60,60,60,0.10) , 3,0,0,1 );
+    -fx-transition: background-color 0.2s;
+}
+
+.button:hover {
+    -fx-background-color: linear-gradient(to bottom, #449d44, #398439);
+    -fx-text-fill: #fff;
+}
+
+.button:pressed {
+    -fx-background-color: linear-gradient(to bottom, #398439 80%, #449d44 100%);
+    -fx-effect: dropshadow( gaussian , rgba(60,60,60,0.18) , 2,0,0,1 );
+}
+
+.button:focused {
+    -fx-border-color: #d6e9c6;
+    -fx-border-width: 2px;
+}
+
+/* Optional: Unterschiedliche Farben für spezielle Buttons */
+.button.delete {
+    -fx-background-color: linear-gradient(to bottom, #d9534f, #c9302c);
+    -fx-border-color: #ac2925;
+}
+.button.delete:hover {
+    -fx-background-color: linear-gradient(to bottom, #c9302c, #ac2925);
+}
+.button.harvested {
+    -fx-background-color: linear-gradient(to bottom, #f0ad4e, #ec971f);
+    -fx-border-color: #b37c17;
+}
+.button.harvested:hover {
+    -fx-background-color: linear-gradient(to bottom, #ec971f, #b37c17);
+}
+.icon-button {
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(one-pass-box, #aac, 3, 0.6, 0, 1);
+    -fx-opacity: 0.85;
+}
+.icon-button:hover {
+    -fx-opacity: 1.0;
+    -fx-effect: dropshadow(one-pass-box, #222, 8, 0.7, 0, 2);
+}

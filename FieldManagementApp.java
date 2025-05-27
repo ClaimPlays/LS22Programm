@@ -2,6 +2,7 @@ import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -10,9 +11,18 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.*;
+import javafx.scene.Cursor;
 import javafx.stage.Stage;
+import javafx.scene.input.MouseEvent;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
+import javafx.application.Platform;
+import javafx.scene.chart.PieChart;
 
+import java.awt.Desktop;
 import java.io.*;
+import java.net.URI;
 import java.util.*;
 
 public class FieldManagementApp extends Application {
@@ -64,16 +74,34 @@ public class FieldManagementApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        // Setze das Taskleisten-Icon (WICHTIG: muss vor primaryStage.show() gesetzt werden!)
+        try {
+            primaryStage.getIcons().add(new Image(new FileInputStream("images/icon.png")));
+        } catch (FileNotFoundException e) {
+            System.out.println("Taskleisten-Icon nicht gefunden: images/icon.png");
+        }
+
+        Timeline reminderTimeline = new Timeline(
+                new KeyFrame(Duration.minutes(60), e -> notifyIfTasksOpen())
+        );
+        reminderTimeline.setCycleCount(Timeline.INDEFINITE);
+        reminderTimeline.play();
+
+        notifyIfTasksOpen();
+
         primaryStage.setTitle("Feld Manager - Farming Simulator 22");
 
         // Überschrift erstellen
-        Label titleLabel = new Label("Felder Management by Kuhstall 2.0 Software");
-        titleLabel.getStyleClass().add("title-label"); // CSS für die Überschrift
+        Label titleLabelLine1 = new Label("Felder Management");
+        Label titleLabelLine2 = new Label("by Kuhstall 2.0 Software");
+        titleLabelLine1.getStyleClass().add("title-label");
+        titleLabelLine2.getStyleClass().add("subtitle-label");
+        VBox titleBox = new VBox(5, titleLabelLine1, titleLabelLine2);
 
         // Logo hinzufügen
         ImageView logoView = new ImageView();
         try {
-            Image logo = new Image(new FileInputStream("images/logo.png")); // Logo-Pfad
+            Image logo = new Image(new FileInputStream("images/logo.png"));
             logoView.setImage(logo);
             logoView.setFitWidth(100);
             logoView.setFitHeight(100);
@@ -81,22 +109,55 @@ public class FieldManagementApp extends Application {
             System.out.println("Logo-Datei nicht gefunden: images/logo.png");
         }
 
-        // Erste Zeile der Überschrift
-        Label titleLabelLine1 = new Label("Felder Management");
-        // Zweite Zeile der Überschrift
-        Label titleLabelLine2 = new Label("by Kuhstall 2.0 Software");
+        // ==== ICONS RECHTS IM HEADER ====
+        ImageView discordIcon = new ImageView();
+        try {
+            Image discordImage = new Image(new FileInputStream("images/discord.png"));
+            discordIcon.setImage(discordImage);
+        } catch (FileNotFoundException e) {
+            System.out.println("Discord-Icon nicht gefunden: images/discord.png");
+        }
+        discordIcon.setFitWidth(32);
+        discordIcon.setFitHeight(32);
+        discordIcon.setCursor(Cursor.HAND);
+        discordIcon.getStyleClass().add("icon-button");
 
-        // CSS-Styling hinzufügen
-        titleLabelLine1.getStyleClass().add("title-label");
-        titleLabelLine2.getStyleClass().add("subtitle-label");
+        ImageView spendeIcon = new ImageView();
+        try {
+            Image spendeImage = new Image(new FileInputStream("images/spende.png"));
+            spendeIcon.setImage(spendeImage);
+        } catch (FileNotFoundException e) {
+            System.out.println("Spenden-Icon nicht gefunden: images/spende.png");
+        }
+        spendeIcon.setFitWidth(32);
+        spendeIcon.setFitHeight(32);
+        spendeIcon.setCursor(Cursor.HAND);
+        spendeIcon.getStyleClass().add("icon-button");
 
-        // Beide Labels in ein VBox-Layout einfügen
-        VBox titleBox = new VBox(5, titleLabelLine1, titleLabelLine2);
+        // Klick-Events für Icons
+        discordIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
+            try {
+                Desktop.getDesktop().browse(new URI("https://dsc.gg/DAF"));
+            } catch (Exception ex) { ex.printStackTrace(); }
+        });
+        spendeIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
+            try {
+                Desktop.getDesktop().browse(new URI("https://paypal.me/erkpay"));
+            } catch (Exception ex) { ex.printStackTrace(); }
+        });
 
-        // Überschrift und Logo in eine HBox einfügen
-        HBox headerBox = new HBox(10, logoView, titleBox);
-        headerBox.setPadding(new Insets(10));
-        headerBox.getStyleClass().add("header-box"); // CSS für den Header
+        HBox iconBox = new HBox(12, discordIcon, spendeIcon);
+        iconBox.setAlignment(Pos.TOP_RIGHT);
+        iconBox.setPadding(new Insets(10, 18, 0, 0));
+
+        // Header (links Logo + Titel, rechts Icons)
+        BorderPane headerPane = new BorderPane();
+        HBox leftHeader = new HBox(10, logoView, titleBox);
+        leftHeader.setAlignment(Pos.CENTER_LEFT);
+        headerPane.setLeft(leftHeader);
+        headerPane.setRight(iconBox);
+        headerPane.setPadding(new Insets(10, 10, 0, 10));
+        headerPane.getStyleClass().add("header-box"); // CSS für den Header
 
         // Load existing data from file
         loadFieldsFromFile();
@@ -113,31 +174,94 @@ public class FieldManagementApp extends Application {
         scrollPane.setPannable(true);
 
         Button createFieldButton = new Button("Feld erstellen");
-        createFieldButton.setOnAction(e -> openCreateFieldWindow(primaryStage));
-
+        createFieldButton.getStyleClass().add("button");
         Button editFieldButton = new Button("Feld bearbeiten");
-        editFieldButton.setOnAction(e -> handleEditField(primaryStage, selectedField));
-
+        editFieldButton.getStyleClass().add("button");
         Button deleteFieldButton = new Button("Feld löschen");
-        deleteFieldButton.setOnAction(e -> handleDeleteField(selectedField));
-
+        deleteFieldButton.getStyleClass().addAll("button", "delete");
         Button harvestedButton = new Button("Geerntet");
+        harvestedButton.getStyleClass().addAll("button", "harvested");
+
+        // NEUER AUSWERTUNGS-BUTTON
+        Button statsButton = new Button("Auswertung");
+        statsButton.getStyleClass().add("button");
+        statsButton.setOnAction(e -> showStatsChart()); // Methode, die das Diagramm öffnet
+
+        createFieldButton.setOnAction(e -> openCreateFieldWindow(primaryStage));
+        editFieldButton.setOnAction(e -> handleEditField(primaryStage, selectedField));
+        deleteFieldButton.setOnAction(e -> handleDeleteField(selectedField));
         harvestedButton.setOnAction(e -> handleHarvested(selectedField));
 
-        HBox buttonBox = new HBox(10, createFieldButton, editFieldButton, deleteFieldButton, harvestedButton);
-        buttonBox.setPadding(new Insets(10));
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox buttonBox = new HBox(10, spacer, createFieldButton, editFieldButton, deleteFieldButton, harvestedButton, statsButton);
+        buttonBox.setAlignment(Pos.CENTER_RIGHT);
+        buttonBox.setPadding(new Insets(0, 18, 10, 0));
         buttonBox.getStyleClass().add("button-box");
 
-        // Hauptlayout erstellen
-        BorderPane mainLayout = new BorderPane();
-        mainLayout.setTop(headerBox); // Überschrift und Logo oben
-        mainLayout.setCenter(scrollPane); // Kachelansicht mit Scrollen in der Mitte
-        mainLayout.setBottom(buttonBox); // Buttons unten
+        VBox topSection = new VBox();
+        topSection.setSpacing(5);
+        topSection.getChildren().addAll(headerPane, buttonBox);
 
-        Scene scene = new Scene(mainLayout, 750, 450);
+        BorderPane mainLayout = new BorderPane();
+        mainLayout.setTop(topSection);
+        mainLayout.setCenter(scrollPane);
+
+        Scene scene = new Scene(mainLayout, 760, 450);
         scene.getStylesheets().add("style.css"); // CSS-Datei laden
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    // ... Restlicher Code bleibt unverändert (updateTilePane, enableDragAndDrop, getCropIcon, handleFieldSelection usw.) ...
+
+    // -- ab hier identisch wie bisher --
+    private void showStatsChart() {
+        int totalFields = fieldListData.size();
+        int harvestedFields = 0;
+        for (String field : fieldListData) {
+            List<String> doneTasks = fieldTasksDoneMap.getOrDefault(field, new ArrayList<>());
+            if (doneTasks.size() == STANDARD_TASKS.size()) {
+                harvestedFields++;
+            }
+        }
+        int openFields = totalFields - harvestedFields;
+
+        PieChart.Data harvestedData = new PieChart.Data("Geerntet", harvestedFields);
+        PieChart.Data openData = new PieChart.Data("Offen", openFields);
+        PieChart pieChart = new PieChart(FXCollections.observableArrayList(harvestedData, openData));
+        pieChart.setTitle("Feldstatus");
+        pieChart.setLegendVisible(true);
+        pieChart.setLabelsVisible(true);
+
+        Label statsLabel = new Label("Geerntet: " + harvestedFields + " / Offene Arbeitsschritte: " + openFields + " / Gesamt: " + totalFields);
+        statsLabel.setPadding(new Insets(10));
+
+        VBox chartBox = new VBox(10, pieChart, statsLabel);
+        chartBox.setPadding(new Insets(20));
+        Stage chartStage = new Stage();
+        chartStage.setTitle("Übersicht Felder (Grafik)");
+        chartStage.setScene(new Scene(chartBox, 400, 350));
+        chartStage.show();
+    }
+
+    private void notifyIfTasksOpen() {
+        StringBuilder message = new StringBuilder();
+        int totalOpen = 0;
+        for (String field : fieldListData) {
+            List<String> openTasks = fieldTasksOpenMap.getOrDefault(field, new ArrayList<>());
+            if (!openTasks.isEmpty()) {
+                message.append(field)
+                        .append(": ")
+                        .append(String.join(", ", openTasks))
+                        .append("\n");
+                totalOpen += openTasks.size();
+            }
+        }
+        Platform.runLater(() -> {
+            showAlert("Erinnerung: Offene Aufgaben",
+                    "Folgende Felder haben noch offene Aufgaben:\n\n" + message.toString());
+        });
     }
 
     private void updateTilePane() {
@@ -149,34 +273,32 @@ public class FieldManagementApp extends Application {
             // Parse the details for display
             String[] parts = details.split("\n");
             String fieldNumber = parts[0].split(": ")[1];
-            String fieldSize = parts[1].split(": ")[1].replace("ha", "").trim(); // Entferne doppelte "ha"
+            String fieldSize = parts[1].split(": ")[1].replace("ha", "").trim();
             String currentCrop = parts[2].split(": ")[1];
 
             VBox fieldBox = new VBox(5);
-            fieldBox.setPadding(new Insets(5)); // Kleinere Polsterung
-            fieldBox.getStyleClass().add("field-box"); // CSS-Klasse hinzufügen
+            fieldBox.setPadding(new Insets(5));
+            fieldBox.getStyleClass().add("field-box");
 
             Label fieldNumberLabel = new Label("Feld: " + fieldNumber);
-            fieldNumberLabel.setStyle("-fx-font-size: 10;"); // Kleinere Schriftgröße
+            fieldNumberLabel.setStyle("-fx-font-size: 10;");
             Label fieldSizeLabel = new Label("Größe: " + fieldSize + " ha");
-            fieldSizeLabel.setStyle("-fx-font-size: 10;"); // Kleinere Schriftgröße
+            fieldSizeLabel.setStyle("-fx-font-size: 10;");
             Label currentCropLabel = new Label(currentCrop);
-            currentCropLabel.setStyle("-fx-font-size: 10;"); // Kleinere Schriftgröße
+            currentCropLabel.setStyle("-fx-font-size: 10;");
 
-            // Add crop icon
             ImageView cropIcon = getCropIcon(currentCrop);
-            cropIcon.setFitWidth(30); // Kleinere Breite des Icons
-            cropIcon.setFitHeight(30); // Kleinere Höhe des Icons
+            cropIcon.setFitWidth(30);
+            cropIcon.setFitHeight(30);
 
             fieldBox.getChildren().addAll(fieldNumberLabel, fieldSizeLabel, cropIcon, currentCropLabel);
 
-            // --- Arbeitsschritte-Checkboxen ---
             BorderPane fieldPane = new BorderPane();
             VBox infoBox = new VBox(5, fieldNumberLabel, fieldSizeLabel, cropIcon, currentCropLabel);
-            infoBox.setPadding(new Insets(0, 10, 0, 0)); // Rechts Platz lassen
+            infoBox.setPadding(new Insets(0, 10, 0, 0));
 
             VBox tasksVBox = new VBox(5);
-            tasksVBox.setPadding(new Insets(0, 0, 0, 10)); // Abstand zu den Infos
+            tasksVBox.setPadding(new Insets(0, 0, 0, 10));
             List<String> openTasks = fieldTasksOpenMap.getOrDefault(field, new ArrayList<>(STANDARD_TASKS));
             List<String> doneTasks = fieldTasksDoneMap.getOrDefault(field, new ArrayList<>());
             for (String task : STANDARD_TASKS) {
@@ -212,7 +334,6 @@ public class FieldManagementApp extends Application {
             fieldTasksDoneMap.put(field, new ArrayList<>(doneTasks));
             fieldBox.getChildren().add(fieldPane);
 
-            // Drag-and-Drop
             enableDragAndDrop(fieldBox, field);
 
             fieldBox.setOnMouseClicked(event -> {
@@ -227,16 +348,14 @@ public class FieldManagementApp extends Application {
 
     private void enableDragAndDrop(VBox fieldBox, String field) {
         fieldBox.setOnDragDetected(event -> {
-            // Start Drag-and-Drop
             Dragboard dragboard = fieldBox.startDragAndDrop(TransferMode.MOVE);
             ClipboardContent content = new ClipboardContent();
-            content.putString(field); // Set the field as drag content
+            content.putString(field);
             dragboard.setContent(content);
             event.consume();
         });
 
         fieldBox.setOnDragOver(event -> {
-            // Allow Drag-and-Drop if the source is another VBox
             if (event.getGestureSource() != fieldBox && event.getDragboard().hasString()) {
                 event.acceptTransferModes(TransferMode.MOVE);
             }
@@ -244,21 +363,14 @@ public class FieldManagementApp extends Application {
         });
 
         fieldBox.setOnDragDropped(event -> {
-            // Handle the drop action
             Dragboard dragboard = event.getDragboard();
             if (dragboard.hasString()) {
                 String draggedField = dragboard.getString();
-
-                // Update the order in fieldListData
                 int draggedIndex = fieldListData.indexOf(draggedField);
                 int targetIndex = fieldListData.indexOf(field);
-
                 if (draggedIndex != -1 && targetIndex != -1) {
-                    // Swap the positions
                     fieldListData.remove(draggedIndex);
                     fieldListData.add(targetIndex, draggedField);
-
-                    // Refresh the TilePane
                     updateTilePane();
                 }
                 event.setDropCompleted(true);
@@ -269,14 +381,12 @@ public class FieldManagementApp extends Application {
         });
 
         fieldBox.setOnDragDone(event -> {
-            // Handle the end of the drag-and-drop gesture
             event.consume();
         });
     }
 
     private ImageView getCropIcon(String cropName) {
         try {
-            // Absoluter Pfad zum Verzeichnis "images/"
             String basePath = System.getProperty("user.dir") + "/images/";
             String imagePath = basePath + cropName + ".png";
             File imageFile = new File(imagePath);
@@ -288,7 +398,6 @@ public class FieldManagementApp extends Application {
             Image image = new Image(new FileInputStream(imageFile));
             return new ImageView(image);
         } catch (FileNotFoundException e) {
-            // Fallback auf Standard-Icon
             try {
                 String defaultImagePath = System.getProperty("user.dir") + "/images/default.png";
                 File defaultImageFile = new File(defaultImagePath);
@@ -298,22 +407,19 @@ public class FieldManagementApp extends Application {
                 Image defaultImage = new Image(new FileInputStream(defaultImageFile));
                 return new ImageView(defaultImage);
             } catch (FileNotFoundException ex) {
-                // Gib ein leeres Platzhalter-Image zurück, falls kein Standard-Icon existiert
                 return new ImageView();
             }
         }
     }
 
     private void handleFieldSelection(VBox fieldBox, String field) {
-        // Entferne die Markierung von allen Kacheln
         tilePane.getChildren().stream()
                 .filter(node -> node instanceof VBox)
                 .map(node -> (VBox) node)
                 .forEach(box -> box.setStyle("-fx-border-color: black; -fx-border-width: 1; -fx-background-color: #f0f0f0;"));
 
-        // Markiere die ausgewählte Kachel
         fieldBox.setStyle("-fx-border-color: green; -fx-border-width: 2; -fx-background-color: #edd6c5;");
-        selectedField = field; // Speichere das ausgewählte Feld
+        selectedField = field;
     }
 
     private void showFieldDetails(String field) {
@@ -345,7 +451,6 @@ public class FieldManagementApp extends Application {
             followCropBox.getChildren().add(followCropCombo);
         }
 
-        // Automatische Folgefrucht-Belegung basierend auf aktueller Frucht
         currentCropCombo.setOnAction(e -> {
             String selected = currentCropCombo.getValue();
             List<String> folgen = FRUCHTFOLGEN.getOrDefault(selected, new ArrayList<>());
@@ -357,7 +462,6 @@ public class FieldManagementApp extends Application {
                 }
             }
         });
-
 
         Button saveButton = new Button("Speichern");
         saveButton.setOnAction(e -> {
@@ -383,15 +487,14 @@ public class FieldManagementApp extends Application {
 
             fieldListData.add(listEntryText);
             fieldDetailsMap.put(listEntryText, fullDetails.toString());
-            fieldTasksMap.put(listEntryText, new ArrayList<>(STANDARD_TASKS)); // Aufgaben initialisieren
+            fieldTasksMap.put(listEntryText, new ArrayList<>(STANDARD_TASKS));
             fieldTasksOpenMap.put(listEntryText, new ArrayList<>(STANDARD_TASKS));
             fieldTasksDoneMap.put(listEntryText, new ArrayList<>());
 
-            // Save the data to file
             saveFieldsToFile();
 
             createFieldStage.close();
-            updateTilePane(); // Refresh the tile view
+            updateTilePane();
         });
 
         VBox layout = new VBox(10,
@@ -416,8 +519,6 @@ public class FieldManagementApp extends Application {
         }
 
         String fullDetails = fieldDetailsMap.get(selectedField);
-
-        // Parse existing details
         String[] details = fullDetails.split("\n");
         String fieldNumber = details[0].split(": ")[1];
         String fieldSize = details[1].split(": ")[1];
@@ -479,13 +580,12 @@ public class FieldManagementApp extends Application {
 
             fieldListData.add(newListEntryText);
             fieldDetailsMap.put(newListEntryText, newFullDetails.toString());
-            fieldTasksMap.put(newListEntryText, new ArrayList<>(STANDARD_TASKS)); // Aufgaben zurücksetzen
+            fieldTasksMap.put(newListEntryText, new ArrayList<>(STANDARD_TASKS));
 
-            // Save the data to file
             saveFieldsToFile();
 
             editFieldStage.close();
-            updateTilePane(); // Refresh the tile view
+            updateTilePane();
         });
 
         VBox layout = new VBox(10,
@@ -513,9 +613,8 @@ public class FieldManagementApp extends Application {
         fieldDetailsMap.remove(selectedField);
         fieldTasksMap.remove(selectedField);
 
-        // Save to file
         saveFieldsToFile();
-        updateTilePane(); // Aktualisiere die Kachelansicht
+        updateTilePane();
     }
 
     private void handleHarvested(String selectedField) {
@@ -539,7 +638,7 @@ public class FieldManagementApp extends Application {
             return;
         }
 
-        String newCurrentCrop = followCrops.remove(0); // Setze die nächste Frucht
+        String newCurrentCrop = followCrops.remove(0);
         StringBuilder newFullDetails = new StringBuilder("Feldnummer: " + fieldNumber + "\nFeldgröße: " + fieldSize + " ha\nAktuelle Frucht: " + newCurrentCrop);
         String newListEntryText = "Feld " + fieldNumber + ": " + newCurrentCrop;
 
@@ -553,11 +652,10 @@ public class FieldManagementApp extends Application {
 
         fieldListData.add(newListEntryText);
         fieldDetailsMap.put(newListEntryText, newFullDetails.toString());
-        fieldTasksMap.put(newListEntryText, new ArrayList<>(STANDARD_TASKS)); // Aufgaben auf Anfang setzen
+        fieldTasksMap.put(newListEntryText, new ArrayList<>(STANDARD_TASKS));
 
-        // Save to file
         saveFieldsToFile();
-        updateTilePane(); // Aktualisiere die Kachelansicht
+        updateTilePane();
     }
 
     private void saveFieldsToFile() {
@@ -571,7 +669,7 @@ public class FieldManagementApp extends Application {
                 writer.newLine();
                 writer.write("TasksDone: " + String.join("|", doneTasks));
                 writer.newLine();
-                writer.newLine(); // Leere Zeile zwischen Einträgen
+                writer.newLine();
             }
         } catch (IOException e) {
             showAlert("Fehler", "Fehler beim Speichern der Daten: " + e.getMessage());
