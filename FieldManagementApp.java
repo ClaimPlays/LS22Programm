@@ -87,8 +87,6 @@ public class FieldManagementApp extends Application {
         reminderTimeline.setCycleCount(Timeline.INDEFINITE);
         reminderTimeline.play();
 
-        notifyIfTasksOpen();
-
         primaryStage.setTitle("Feld Manager - Farming Simulator 22");
 
         // Überschrift erstellen
@@ -103,8 +101,9 @@ public class FieldManagementApp extends Application {
         try {
             Image logo = new Image(new FileInputStream("images/logo.png"));
             logoView.setImage(logo);
-            logoView.setFitWidth(100);
-            logoView.setFitHeight(100);
+            logoView.setFitHeight(130);
+            logoView.setPreserveRatio(true);
+            logoView.getStyleClass().add("logo-image");
         } catch (FileNotFoundException e) {
             System.out.println("Logo-Datei nicht gefunden: images/logo.png");
         }
@@ -146,7 +145,46 @@ public class FieldManagementApp extends Application {
             } catch (Exception ex) { ex.printStackTrace(); }
         });
 
-        HBox iconBox = new HBox(12, discordIcon, spendeIcon);
+        ImageView lampIcon = new ImageView();
+        lampIcon.setFitWidth(28);
+        lampIcon.setFitHeight(28);
+        lampIcon.setCursor(Cursor.HAND);
+
+        // Paths zu den Lampen-Bildern
+        String lampOnPath = "images/lamp-on.png";   // style.css aktiv (Light Mode)
+        String lampOffPath = "images/lamp-off.png"; // style-dark.css aktiv (Dark Mode)
+
+        // Standard: Light Mode
+        boolean[] isDarkMode = {false};
+        try {
+            lampIcon.setImage(new Image(new FileInputStream(lampOnPath)));
+        } catch (Exception e) {
+            System.out.println("Lamp-On Icon nicht gefunden: " + lampOnPath);
+        }
+
+        // Umschalten beim Klick
+        lampIcon.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
+            isDarkMode[0] = !isDarkMode[0];
+            Scene scene = primaryStage.getScene();
+            scene.getStylesheets().clear();
+            if (isDarkMode[0]) {
+                scene.getStylesheets().add("style-dark.css");
+                try {
+                    lampIcon.setImage(new Image(new FileInputStream(lampOffPath)));
+                } catch (Exception ex) {
+                    System.out.println("Lamp-Off Icon nicht gefunden: " + lampOffPath);
+                }
+            } else {
+                scene.getStylesheets().add("style.css");
+                try {
+                    lampIcon.setImage(new Image(new FileInputStream(lampOnPath)));
+                } catch (Exception ex) {
+                    System.out.println("Lamp-On Icon nicht gefunden: " + lampOnPath);
+                }
+            }
+        });
+
+        HBox iconBox = new HBox(12, discordIcon, spendeIcon, lampIcon);
         iconBox.setAlignment(Pos.TOP_RIGHT);
         iconBox.setPadding(new Insets(10, 18, 0, 0));
 
@@ -184,7 +222,8 @@ public class FieldManagementApp extends Application {
 
         // NEUER AUSWERTUNGS-BUTTON
         Button statsButton = new Button("Auswertung");
-        statsButton.getStyleClass().add("button");
+        statsButton.setTooltip(new Tooltip("Zeigt eine grafische Auswertung zu deinen Feldern"));
+        statsButton.getStyleClass().addAll("button", "stats-button");
         statsButton.setOnAction(e -> showStatsChart()); // Methode, die das Diagramm öffnet
 
         createFieldButton.setOnAction(e -> openCreateFieldWindow(primaryStage));
@@ -196,7 +235,7 @@ public class FieldManagementApp extends Application {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox buttonBox = new HBox(10, spacer, createFieldButton, editFieldButton, deleteFieldButton, harvestedButton, statsButton);
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
-        buttonBox.setPadding(new Insets(0, 18, 10, 0));
+        buttonBox.setPadding(new Insets(0, 30, 10, 0));
         buttonBox.getStyleClass().add("button-box");
 
         VBox topSection = new VBox();
@@ -207,7 +246,7 @@ public class FieldManagementApp extends Application {
         mainLayout.setTop(topSection);
         mainLayout.setCenter(scrollPane);
 
-        Scene scene = new Scene(mainLayout, 760, 450);
+        Scene scene = new Scene(mainLayout, 760, 480);
         scene.getStylesheets().add("style.css"); // CSS-Datei laden
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -281,11 +320,13 @@ public class FieldManagementApp extends Application {
             fieldBox.getStyleClass().add("field-box");
 
             Label fieldNumberLabel = new Label("Feld: " + fieldNumber);
-            fieldNumberLabel.setStyle("-fx-font-size: 10;");
+            fieldNumberLabel.setStyle("-fx-font-size: 12;");
+            fieldNumberLabel.getStyleClass().addAll("feld-info-label", "feldname");
             Label fieldSizeLabel = new Label("Größe: " + fieldSize + " ha");
-            fieldSizeLabel.setStyle("-fx-font-size: 10;");
+            fieldSizeLabel.setStyle("-fx-font-size: 12;");
+            fieldSizeLabel.getStyleClass().addAll("feld-info-label", "groesse");
             Label currentCropLabel = new Label(currentCrop);
-            currentCropLabel.setStyle("-fx-font-size: 10;");
+            currentCropLabel.getStyleClass().addAll("feld-info-label", "fruchtsorte");
 
             ImageView cropIcon = getCropIcon(currentCrop);
             cropIcon.setFitWidth(30);
